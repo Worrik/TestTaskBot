@@ -1,0 +1,99 @@
+<head>
+    <title>Start Page</title>
+    <meta charset="utf-8">
+    <meta name="viewport"
+          content="width=device-width, initial-scale=1.0, minimum-scale=1.0, maximum-scale=1.0, user-scalable=no"/>
+    <meta name="format-detection" content="telephone=no"/>
+    <meta http-equiv="X-UA-Compatible" content="IE=edge"/>
+    <meta name="MobileOptimized" content="176"/>
+    <meta name="HandheldFriendly" content="True"/>
+    <meta name="robots" content="noindex,nofollow"/>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.2.0-beta1/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-0evHe/X+R7YkIZDRvuzKMRqM+OrBnVFBL6DOitfPri4tjfHxaWutUpFmBp4vmVor" crossorigin="anonymous">
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+
+    <style>
+      section {
+        padding: 10px;
+      }
+      #currencySelect {
+        margin: 14px 0;
+      }
+      #price {
+        text-align: center;
+        width: 100%
+      }
+    </style>
+</head>
+<body>
+<section>
+  <select class="form-select" id="currencySelect">
+    <option selected>Select currency pair</option>
+  </select>
+  <div class="slidecontainer">
+    <label for="range" id="sliderValue" class="form-label">Update interval: 5s</label>
+    <input type="range" class="form-range" value="5" min="1" max="10" id="range">
+  </div>
+  <h2 id="price">Price:</h2>
+</section>
+
+<script>
+  Telegram.WebApp.ready()
+
+  let initData = Telegram.WebApp.initData || ''
+  let initDataUnsafe = Telegram.WebApp.initDataUnsafe || {}
+
+  let currencySelect = document.getElementById("currencySelect")
+  let pairs = []
+
+  fetch('https://api.coinpay.ua/api/v1/pair')
+    .then((resp) => resp.json())
+    .then((data) => {
+      pairs = data.pairs
+      for (let id in pairs) {
+        let pair = data.pairs[id]
+        currencySelect.innerHTML += `<option value="${id}">${pair.name}</option>`
+      }
+    })
+
+  let slider = document.getElementById("range")
+  let sliderValue = document.getElementById("sliderValue")
+
+  let price = document.getElementById("price")
+
+  function setPrice(price_value) {
+    price.innerText = `Price: ${price_value}`
+  }
+
+  function create_interval(interval) {
+    return setInterval(
+      () => {
+        pairId = parseInt(currencySelect.value)
+        if (!Number.isInteger(pairId))
+          return
+        pair = pairs[pairId]
+        fetch('https://api.coinpay.ua/api/v1/exchange_rate')
+          .then((resp) => resp.json())
+          .then((data) => {
+            for (let id in data.rates)
+              if (data.rates[id].pair == pair.name)
+                setPrice(data.rates[id].price)
+          })
+      },
+      interval
+    )
+  }
+
+  let intervalId = create_interval(slider.value * 1000)
+
+  slider.oninput = function() {
+    sliderValue.innerText = `Update interval: ${slider.value}s`
+    clearInterval(intervalId)
+    intervalId = create_interval(slider.value * 1000)
+  }
+
+  Telegram.WebApp.MainButton.setText('STOP').show().onClick(function () {
+    Telegram.WebApp.close()
+  })
+</script>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.2.0-beta1/dist/js/bootstrap.bundle.min.js" integrity="sha384-pprn3073KE6tl6bjs2QrFaJGz5/SUsLqktiwsUTF55Jfv3qYSDhgCecCxMW52nD2" crossorigin="anonymous"></script>
+</body>
